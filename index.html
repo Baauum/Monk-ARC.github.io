@@ -1,641 +1,513 @@
-import React, { useState, useEffect } from 'react';
-import { Wallet, TrendingUp, Coins, Gift, Clock, Users, DollarSign, AlertCircle, CheckCircle, RefreshCw } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RaffleFi - Lending with Raffle Rewards</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen">
+    
+    <!-- Header -->
+    <div class="bg-white border-b border-gray-200 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <span class="text-white text-2xl">🎁</span>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900">RaffleFi</h1>
+                        <p class="text-xs text-gray-500">Lending with Raffle Rewards</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-3">
+                    <button id="refreshBtn" class="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+                        <span id="refreshIcon">🔄</span>
+                    </button>
+                    <button id="connectBtn" class="px-6 py-2.5 rounded-lg font-medium transition-all bg-indigo-600 text-white hover:bg-indigo-700">
+                        <span>🔌 Connect Wallet</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Status Message -->
+    <div id="statusMessage" class="hidden max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+        <div id="statusContent" class="p-4 rounded-lg"></div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        
+        <!-- Current Raffle Banner -->
+        <div class="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-2xl p-6 mb-8 text-white">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-12 h-12 bg-white/20 backdrop-blur rounded-full flex items-center justify-center">
+                        <span class="text-3xl">🎁</span>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold">Current Raffle #<span id="raffleId">0</span></h2>
+                        <p class="text-indigo-100">Hourly rewards for lenders</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2 bg-white/20 backdrop-blur px-4 py-2 rounded-full">
+                    <span>⏰</span>
+                    <span class="font-semibold" id="timeRemaining">Not started</span>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-4 gap-4">
+                <div class="bg-white/10 backdrop-blur rounded-lg p-4">
+                    <p class="text-indigo-100 text-sm mb-1">Total Prize Pool</p>
+                    <p class="text-3xl font-bold"><span id="rewardPool">0</span> mUSDC</p>
+                </div>
+                <div class="bg-white/10 backdrop-blur rounded-lg p-4">
+                    <p class="text-indigo-100 text-sm mb-1">Winners</p>
+                    <p class="text-3xl font-bold">10</p>
+                </div>
+                <div class="bg-white/10 backdrop-blur rounded-lg p-4">
+                    <p class="text-indigo-100 text-sm mb-1">Participants</p>
+                    <p class="text-3xl font-bold" id="participants">0</p>
+                </div>
+                <div class="bg-white/10 backdrop-blur rounded-lg p-4">
+                    <p class="text-indigo-100 text-sm mb-1">Your Tickets</p>
+                    <p class="text-3xl font-bold" id="yourTickets">0</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Main Panel -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                    <!-- Tabs -->
+                    <div class="flex border-b border-gray-200">
+                        <button id="lendTab" class="flex-1 px-6 py-4 font-semibold bg-indigo-50 text-indigo-600 border-b-2 border-indigo-600">
+                            Lend
+                        </button>
+                        <button id="dashboardTab" class="flex-1 px-6 py-4 font-semibold text-gray-600 hover:bg-gray-50">
+                            Dashboard
+                        </button>
+                    </div>
+                    
+                    <div class="p-6">
+                        <!-- Lend Content -->
+                        <div id="lendContent">
+                            <!-- Approval Section -->
+                            <div id="approvalSection" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 hidden">
+                                <div class="flex items-start space-x-3">
+                                    <span class="text-yellow-600 text-xl">⚠️</span>
+                                    <div class="flex-1">
+                                        <p class="text-sm text-yellow-800 mb-3">
+                                            <strong>First time?</strong> You need to approve the contract to spend your tokens.
+                                        </p>
+                                        <button id="approveBtn" class="bg-yellow-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-yellow-700 transition-colors">
+                                            Approve Tokens
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Deposit Section -->
+                            <div class="mb-6">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">Deposit & Earn Raffle Tickets</h3>
+                                <p class="text-sm text-gray-600 mb-4">
+                                    Your balance: <strong id="userBalance">0</strong> mUSDC
+                                </p>
+                                
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Deposit Amount</label>
+                                        <div class="relative">
+                                            <input type="number" id="depositAmount" placeholder="0.00" 
+                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                            <span class="absolute right-4 top-3.5 text-gray-500 font-medium">mUSDC</span>
+                                        </div>
+                                        <p class="text-sm text-indigo-600 mt-2" id="ticketsPreview"></p>
+                                    </div>
+                                    
+                                    <button id="depositBtn" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors">
+                                        Deposit
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Withdraw Section -->
+                            <div class="border-t pt-6">
+                                <h3 class="text-lg font-semibold text-gray-900 mb-4">Withdraw</h3>
+                                <p class="text-sm text-gray-600 mb-4">
+                                    Available: <strong id="availableWithdraw">0</strong> mUSDC
+                                </p>
+                                
+                                <div class="space-y-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">Withdraw Amount</label>
+                                        <div class="relative">
+                                            <input type="number" id="withdrawAmount" placeholder="0.00" 
+                                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                            <span class="absolute right-4 top-3.5 text-gray-500 font-medium">mUSDC</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <button id="withdrawBtn" class="w-full bg-gray-600 text-white py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors">
+                                        Withdraw
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Dashboard Content -->
+                        <div id="dashboardContent" class="hidden">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Your Positions</h3>
+                            
+                            <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                                <div class="flex items-center justify-between mb-3">
+                                    <span class="font-semibold text-green-900">Deposits</span>
+                                    <span>📈</span>
+                                </div>
+                                <div class="flex justify-between items-center py-2">
+                                    <span class="text-gray-700">mUSDC</span>
+                                    <div class="text-right">
+                                        <p class="font-semibold text-gray-900" id="depositedAmount">0</p>
+                                        <p class="text-sm text-green-600"><span id="depositedTickets">0</span> tickets</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sidebar -->
+            <div class="space-y-6">
+                <!-- Pool Info -->
+                <div class="bg-white rounded-2xl shadow-lg p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <span class="mr-2">💵</span>
+                        Pool Statistics
+                    </h3>
+                    
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-2xl">💵</span>
+                                <span class="font-semibold text-gray-900">mUSDC</span>
+                            </div>
+                            <span class="text-xs px-2 py-1 rounded-full bg-green-100 text-green-700" id="utilizationBadge">
+                                0% Used
+                            </span>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <p class="text-gray-500 mb-1">Total Deposits</p>
+                                <p class="font-semibold text-gray-900" id="totalDeposits">0</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-500 mb-1">Total Borrows</p>
+                                <p class="font-semibold text-gray-900" id="totalBorrows">0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Contract Addresses -->
+                <div class="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Contract Info</h3>
+                    
+                    <div class="space-y-3 text-sm">
+                        <div>
+                            <p class="text-gray-600 mb-1">Lending Protocol</p>
+                            <p class="font-mono text-xs text-gray-900 break-all" id="lendingAddress">Not set</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-600 mb-1">MockUSDC Token</p>
+                            <p class="font-mono text-xs text-gray-900 break-all" id="tokenAddress">Not set</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-const RaffleLendingProtocol = () => {
-  // ⚠️ REPLACE THESE WITH YOUR ACTUAL CONTRACT ADDRESSES
-  const LENDING_PROTOCOL_ADDRESS = '0xA95597A9e40fCa517a95e0f5E039702379577858';
-  const MOCK_USDC_ADDRESS = '0x3600000000000000000000000000000000000000';
-  
-  // ABIs (simplified - only the functions we need)
-  const LENDING_PROTOCOL_ABI = [
-    "function deposit(address asset, uint256 amount) external",
-    "function withdraw(address asset, uint256 amount) external",
-    "function borrow(address borrowAsset, uint256 borrowAmount, address collateralAsset, uint256 collateralAmount) external",
-    "function repay(address asset, uint256 amount) external",
-    "function getUserDepositInfo(address user, address asset) external view returns (uint256 amount, uint256 tickets)",
-    "function getUserBorrowInfo(address user, address asset) external view returns (uint256 amount, uint256 interest, uint256 collateralAmount, address collateralAsset)",
-    "function getRaffleInfo(uint256 raffleId) external view returns (uint256 rewardPool, uint256 endTime, uint256 participantCount, bool drawn)",
-    "function getRaffleWinners(uint256 raffleId) external view returns (address[] memory)",
-    "function currentRaffleId() external view returns (uint256)",
-    "function pools(address asset) external view returns (address, uint256, uint256, uint256, uint256, uint256, bool)"
-  ];
-  
-  const ERC20_ABI = [
-    "function approve(address spender, uint256 amount) external returns (bool)",
-    "function allowance(address owner, address spender) external view returns (uint256)",
-    "function balanceOf(address account) external view returns (uint256)",
-    "function decimals() external view returns (uint8)"
-  ];
-  
-  const [activeTab, setActiveTab] = useState('lend');
-  const [walletConnected, setWalletConnected] = useState(false);
-  const [walletAddress, setWalletAddress] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('');
-  
-  // Form states
-  const [depositAmount, setDepositAmount] = useState('');
-  const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [borrowAmount, setBorrowAmount] = useState('');
-  const [collateralAmount, setCollateralAmount] = useState('');
-  
-  // User data
-  const [userBalance, setUserBalance] = useState('0');
-  const [userDeposit, setUserDeposit] = useState({ amount: '0', tickets: '0' });
-  const [userBorrow, setUserBorrow] = useState({ amount: '0', interest: '0', collateral: '0' });
-  const [allowance, setAllowance] = useState('0');
-  
-  // Raffle data
-  const [currentRaffle, setCurrentRaffle] = useState({
-    id: 0,
-    rewardPool: '0',
-    endTime: 0,
-    participants: 0,
-    drawn: false
-  });
-  
-  const [poolInfo, setPoolInfo] = useState({
-    totalDeposits: '0',
-    totalBorrows: '0',
-    utilizationRate: 0
-  });
-  
-  // Connect wallet
-  const connectWallet = async () => {
-    if (typeof window.ethereum !== 'undefined') {
-      try {
-        setLoading(true);
-        const accounts = await window.ethereum.request({ 
-          method: 'eth_requestAccounts' 
-        });
+    <script>
+        // ⚠️ REPLACE THESE WITH YOUR ACTUAL CONTRACT ADDRESSES
+        const LENDING_PROTOCOL_ADDRESS = '0xA95597A9e40fCa517a95e0f5E039702379577858';
+        const MOCK_USDC_ADDRESS = '0x3600000000000000000000000000000000000000';
         
-        const chainId = await window.ethereum.request({ 
-          method: 'eth_chainId' 
-        });
+        // Display addresses
+        document.getElementById('lendingAddress').textContent = LENDING_PROTOCOL_ADDRESS;
+        document.getElementById('tokenAddress').textContent = MOCK_USDC_ADDRESS;
         
-        const arcChainId = '0x4CE632'; // 5042002 in hex
+        // ABIs
+        const LENDING_PROTOCOL_ABI = [
+            "function deposit(address asset, uint256 amount) external",
+            "function withdraw(address asset, uint256 amount) external",
+            "function getUserDepositInfo(address user, address asset) external view returns (uint256 amount, uint256 tickets)",
+            "function getRaffleInfo(uint256 raffleId) external view returns (uint256 rewardPool, uint256 endTime, uint256 participantCount, bool drawn)",
+            "function currentRaffleId() external view returns (uint256)",
+            "function pools(address asset) external view returns (address, uint256, uint256, uint256, uint256, uint256, bool)"
+        ];
         
-        if (chainId !== arcChainId) {
-          try {
-            await window.ethereum.request({
-              method: 'wallet_switchEthereumChain',
-              params: [{ chainId: arcChainId }],
-            });
-          } catch (switchError) {
-            if (switchError.code === 4902) {
-              await window.ethereum.request({
-                method: 'wallet_addEthereumChain',
-                params: [{
-                  chainId: arcChainId,
-                  chainName: 'Arc Testnet',
-                  nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 6 },
-                  rpcUrls: ['https://arc-testnet.rpc.caldera.xyz/http'],
-                  blockExplorerUrls: ['https://testnet.arcscan.app/']
-                }]
-              });
+        const ERC20_ABI = [
+            "function approve(address spender, uint256 amount) external returns (bool)",
+            "function allowance(address owner, address spender) external view returns (uint256)",
+            "function balanceOf(address account) external view returns (uint256)"
+        ];
+        
+        let provider, signer, walletAddress;
+        let lendingContract, tokenContract;
+        
+        // Show status message
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('statusMessage');
+            const statusContent = document.getElementById('statusContent');
+            
+            statusDiv.classList.remove('hidden');
+            statusContent.className = 'p-4 rounded-lg ';
+            
+            if (type === 'success') {
+                statusContent.className += 'bg-green-50 text-green-800';
+            } else if (type === 'error') {
+                statusContent.className += 'bg-red-50 text-red-800';
+            } else {
+                statusContent.className += 'bg-blue-50 text-blue-800';
             }
-          }
+            
+            statusContent.textContent = message;
+            
+            setTimeout(() => {
+                statusDiv.classList.add('hidden');
+            }, 5000);
         }
         
-        setWalletAddress(accounts[0]);
-        setWalletConnected(true);
-        setStatusMessage('Wallet connected!');
+        // Connect wallet
+        async function connectWallet() {
+            if (typeof window.ethereum === 'undefined') {
+                alert('Please install MetaMask!');
+                return;
+            }
+            
+            try {
+                showStatus('Connecting wallet...');
+                
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                
+                const arcChainId = '0x4CE632';
+                
+                if (chainId !== arcChainId) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: arcChainId }],
+                        });
+                    } catch (switchError) {
+                        if (switchError.code === 4902) {
+                            await window.ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [{
+                                    chainId: arcChainId,
+                                    chainName: 'Arc Testnet',
+                                    nativeCurrency: { name: 'USDC', symbol: 'USDC', decimals: 6 },
+                                    rpcUrls: ['https://arc-testnet.rpc.caldera.xyz/http'],
+                                    blockExplorerUrls: ['https://testnet.arcscan.app/']
+                                }]
+                            });
+                        }
+                    }
+                }
+                
+                walletAddress = accounts[0];
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                signer = provider.getSigner();
+                
+                lendingContract = new ethers.Contract(LENDING_PROTOCOL_ADDRESS, LENDING_PROTOCOL_ABI, signer);
+                tokenContract = new ethers.Contract(MOCK_USDC_ADDRESS, ERC20_ABI, signer);
+                
+                document.getElementById('connectBtn').innerHTML = `<span>✅ ${walletAddress.slice(0,6)}...${walletAddress.slice(-4)}</span>`;
+                document.getElementById('connectBtn').className = 'px-6 py-2.5 rounded-lg font-medium transition-all bg-green-100 text-green-700';
+                
+                showStatus('✅ Wallet connected!', 'success');
+                await loadUserData();
+            } catch (error) {
+                console.error(error);
+                showStatus('❌ Error connecting wallet', 'error');
+            }
+        }
         
         // Load user data
-        await loadUserData(accounts[0]);
-      } catch (error) {
-        console.error('Error connecting wallet:', error);
-        setStatusMessage('Error connecting wallet: ' + error.message);
-      } finally {
-        setLoading(false);
-      }
-    } else {
-      alert('Please install MetaMask to use this dApp');
-    }
-  };
-  
-  // Load user data from contract
-  const loadUserData = async (address) => {
-    try {
-      const provider = new window.ethers.providers.Web3Provider(window.ethereum);
-      const lendingContract = new window.ethers.Contract(LENDING_PROTOCOL_ADDRESS, LENDING_PROTOCOL_ABI, provider);
-      const tokenContract = new window.ethers.Contract(MOCK_USDC_ADDRESS, ERC20_ABI, provider);
-      
-      // Get user balance
-      const balance = await tokenContract.balanceOf(address);
-      setUserBalance(window.ethers.utils.formatEther(balance));
-      
-      // Get user deposit info
-      const depositInfo = await lendingContract.getUserDepositInfo(address, MOCK_USDC_ADDRESS);
-      setUserDeposit({
-        amount: window.ethers.utils.formatEther(depositInfo.amount),
-        tickets: depositInfo.tickets.toString()
-      });
-      
-      // Get user borrow info
-      try {
-        const borrowInfo = await lendingContract.getUserBorrowInfo(address, MOCK_USDC_ADDRESS);
-        setUserBorrow({
-          amount: window.ethers.utils.formatEther(borrowInfo.amount),
-          interest: window.ethers.utils.formatEther(borrowInfo.interest),
-          collateral: window.ethers.utils.formatEther(borrowInfo.collateralAmount)
-        });
-      } catch (e) {
-        // No borrow yet
-      }
-      
-      // Get current raffle info
-      const raffleId = await lendingContract.currentRaffleId();
-      if (raffleId.toNumber() > 0) {
-        const raffleInfo = await lendingContract.getRaffleInfo(raffleId);
-        setCurrentRaffle({
-          id: raffleId.toNumber(),
-          rewardPool: window.ethers.utils.formatEther(raffleInfo.rewardPool),
-          endTime: raffleInfo.endTime.toNumber(),
-          participants: raffleInfo.participantCount.toNumber(),
-          drawn: raffleInfo.drawn
-        });
-      }
-      
-      // Get pool info
-      const pool = await lendingContract.pools(MOCK_USDC_ADDRESS);
-      setPoolInfo({
-        totalDeposits: window.ethers.utils.formatEther(pool[1]),
-        totalBorrows: window.ethers.utils.formatEther(pool[2]),
-        utilizationRate: pool[3].toNumber() / 100 // Convert from basis points
-      });
-      
-      // Get allowance
-      const allowanceAmount = await tokenContract.allowance(address, LENDING_PROTOCOL_ADDRESS);
-      setAllowance(window.ethers.utils.formatEther(allowanceAmount));
-      
-    } catch (error) {
-      console.error('Error loading user data:', error);
-    }
-  };
-  
-  // Approve tokens
-  const handleApprove = async () => {
-    if (!walletConnected) {
-      setStatusMessage('Please connect your wallet first');
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      setStatusMessage('Approving tokens...');
-      
-      const provider = new window.ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
-      const tokenContract = new window.ethers.Contract(MOCK_USDC_ADDRESS, ERC20_ABI, signer);
-      
-      // Approve unlimited amount for simplicity
-      const tx = await tokenContract.approve(
-        LENDING_PROTOCOL_ADDRESS,
-        window.ethers.constants.MaxUint256
-      );
-      
-      setStatusMessage('Waiting for confirmation...');
-      await tx.wait();
-      
-      setStatusMessage('✅ Tokens approved!');
-      await loadUserData(walletAddress);
-    } catch (error) {
-      console.error('Error approving:', error);
-      setStatusMessage('❌ Error: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Deposit
-  const handleDeposit = async () => {
-    if (!walletConnected) {
-      setStatusMessage('Please connect your wallet first');
-      return;
-    }
-    
-    if (!depositAmount || parseFloat(depositAmount) <= 0) {
-      setStatusMessage('Please enter a valid amount');
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      setStatusMessage('Depositing...');
-      
-      const provider = new window.ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
-      const lendingContract = new window.ethers.Contract(LENDING_PROTOCOL_ADDRESS, LENDING_PROTOCOL_ABI, signer);
-      
-      const amount = window.ethers.utils.parseEther(depositAmount);
-      const tx = await lendingContract.deposit(MOCK_USDC_ADDRESS, amount);
-      
-      setStatusMessage('Waiting for confirmation...');
-      await tx.wait();
-      
-      setStatusMessage('✅ Deposit successful! You earned raffle tickets!');
-      setDepositAmount('');
-      await loadUserData(walletAddress);
-    } catch (error) {
-      console.error('Error depositing:', error);
-      setStatusMessage('❌ Error: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Withdraw
-  const handleWithdraw = async () => {
-    if (!walletConnected) {
-      setStatusMessage('Please connect your wallet first');
-      return;
-    }
-    
-    if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) {
-      setStatusMessage('Please enter a valid amount');
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      setStatusMessage('Withdrawing...');
-      
-      const provider = new window.ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
-      const lendingContract = new window.ethers.Contract(LENDING_PROTOCOL_ADDRESS, LENDING_PROTOCOL_ABI, signer);
-      
-      const amount = window.ethers.utils.parseEther(withdrawAmount);
-      const tx = await lendingContract.withdraw(MOCK_USDC_ADDRESS, amount);
-      
-      setStatusMessage('Waiting for confirmation...');
-      await tx.wait();
-      
-      setStatusMessage('✅ Withdrawal successful!');
-      setWithdrawAmount('');
-      await loadUserData(walletAddress);
-    } catch (error) {
-      console.error('Error withdrawing:', error);
-      setStatusMessage('❌ Error: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Refresh data
-  const handleRefresh = async () => {
-    if (walletConnected) {
-      setLoading(true);
-      await loadUserData(walletAddress);
-      setLoading(false);
-      setStatusMessage('✅ Data refreshed');
-    }
-  };
-  
-  const formatAddress = (addr) => {
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-  };
-  
-  const formatTimeRemaining = (endTime) => {
-    const now = Math.floor(Date.now() / 1000);
-    const diff = endTime - now;
-    
-    if (diff <= 0) return 'Ended';
-    
-    const minutes = Math.floor(diff / 60);
-    const seconds = diff % 60;
-    
-    if (minutes > 60) {
-      const hours = Math.floor(minutes / 60);
-      const mins = minutes % 60;
-      return `${hours}h ${mins}m`;
-    }
-    
-    return `${minutes}m ${seconds}s`;
-  };
-  
-  // Load ethers.js
-  useEffect(() => {
-    const loadEthers = async () => {
-      if (!window.ethers && window.ethereum) {
-        const script = document.createElement('script');
-        script.src = 'https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js';
-        script.async = true;
-        document.body.appendChild(script);
-      }
-    };
-    loadEthers();
-  }, []);
-  
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <Gift className="text-white" size={24} />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">RaffleFi</h1>
-                <p className="text-xs text-gray-500">Lending with Raffle Rewards</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={handleRefresh}
-                disabled={loading || !walletConnected}
-                className="p-2 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
-                title="Refresh data"
-              >
-                <RefreshCw size={20} className={loading ? 'animate-spin' : ''} />
-              </button>
-              
-              <button
-                onClick={connectWallet}
-                disabled={loading}
-                className={`px-6 py-2.5 rounded-lg font-medium transition-all flex items-center space-x-2 ${
-                  walletConnected
-                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                }`}
-              >
-                <Wallet size={18} />
-                <span>{walletConnected ? formatAddress(walletAddress) : 'Connect Wallet'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Status Message */}
-      {statusMessage && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
-          <div className={`p-4 rounded-lg ${
-            statusMessage.includes('✅') ? 'bg-green-50 text-green-800' :
-            statusMessage.includes('❌') ? 'bg-red-50 text-red-800' :
-            'bg-blue-50 text-blue-800'
-          }`}>
-            {statusMessage}
-          </div>
-        </div>
-      )}
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Current Raffle Banner */}
-        <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 rounded-2xl p-6 mb-8 text-white">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-full flex items-center justify-center">
-                <Gift size={28} />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold">Current Raffle #{currentRaffle.id}</h2>
-                <p className="text-indigo-100">Hourly rewards for lenders</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2 bg-white/20 backdrop-blur px-4 py-2 rounded-full">
-              <Clock size={20} />
-              <span className="font-semibold">
-                {currentRaffle.endTime > 0 ? formatTimeRemaining(currentRaffle.endTime) : 'Not started'}
-              </span>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-4 gap-4">
-            <div className="bg-white/10 backdrop-blur rounded-lg p-4">
-              <p className="text-indigo-100 text-sm mb-1">Total Prize Pool</p>
-              <p className="text-3xl font-bold">{parseFloat(currentRaffle.rewardPool).toFixed(2)} mUSDC</p>
-            </div>
-            <div className="bg-white/10 backdrop-blur rounded-lg p-4">
-              <p className="text-indigo-100 text-sm mb-1">Winners</p>
-              <p className="text-3xl font-bold">10</p>
-            </div>
-            <div className="bg-white/10 backdrop-blur rounded-lg p-4">
-              <p className="text-indigo-100 text-sm mb-1">Participants</p>
-              <p className="text-3xl font-bold">{currentRaffle.participants}</p>
-            </div>
-            <div className="bg-white/10 backdrop-blur rounded-lg p-4">
-              <p className="text-indigo-100 text-sm mb-1">Your Tickets</p>
-              <p className="text-3xl font-bold">{userDeposit.tickets}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Panel */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
-              <div className="flex border-b border-gray-200">
-                {['lend', 'dashboard'].map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`flex-1 px-6 py-4 font-semibold transition-colors ${
-                      activeTab === tab
-                        ? 'bg-indigo-50 text-indigo-600 border-b-2 border-indigo-600'
-                        : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                  </button>
-                ))}
-              </div>
-              
-              <div className="p-6">
-                {activeTab === 'lend' && (
-                  <div className="space-y-6">
-                    {/* Approval Section */}
-                    {parseFloat(allowance) === 0 && (
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                        <div className="flex items-start space-x-3">
-                          <AlertCircle className="text-yellow-600 flex-shrink-0 mt-0.5" size={20} />
-                          <div className="flex-1">
-                            <p className="text-sm text-yellow-800 mb-3">
-                              <strong>First time?</strong> You need to approve the contract to spend your tokens.
-                            </p>
-                            <button
-                              onClick={handleApprove}
-                              disabled={loading}
-                              className="bg-yellow-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-yellow-700 transition-colors disabled:opacity-50"
-                            >
-                              {loading ? 'Approving...' : 'Approve Tokens'}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Deposit & Earn Raffle Tickets</h3>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Your balance: <strong>{parseFloat(userBalance).toFixed(2)} mUSDC</strong>
-                      </p>
-                      
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Deposit Amount
-                          </label>
-                          <div className="relative">
-                            <input
-                              type="number"
-                              value={depositAmount}
-                              onChange={(e) => setDepositAmount(e.target.value)}
-                              placeholder="0.00"
-                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                            />
-                            <span className="absolute right-4 top-3.5 text-gray-500 font-medium">
-                              mUSDC
-                            </span>
-                          </div>
-                          {depositAmount && (
-                            <p className="text-sm text-indigo-600 mt-2">
-                              ≈ {Math.floor(parseFloat(depositAmount))} raffle tickets
-                            </p>
-                          )}
-                        </div>
-                        
-                        <button
-                          onClick={handleDeposit}
-                          disabled={loading || parseFloat(allowance) === 0}
-                          className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {loading ? 'Processing...' : 'Deposit'}
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div className="border-t pt-6">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Withdraw</h3>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Available: <strong>{parseFloat(userDeposit.amount).toFixed(2)} mUSDC</strong>
-                      </p>
-                      
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Withdraw Amount
-                          </label>
-                          <div className="relative">
-                            <input
-                              type="number"
-                              value={withdrawAmount}
-                              onChange={(e) => setWithdrawAmount(e.target.value)}
-                              placeholder="0.00"
-                              max={userDeposit.amount}
-                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                            />
-                            <span className="absolute right-4 top-3.5 text-gray-500 font-medium">
-                              mUSDC
-                            </span>
-                          </div>
-                        </div>
-                        
-                        <button
-                          onClick={handleWithdraw}
-                          disabled={loading}
-                          className="w-full bg-gray-600 text-white py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors disabled:opacity-50"
-                        >
-                          {loading ? 'Processing...' : 'Withdraw'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
+        async function loadUserData() {
+            try {
+                // Get balance
+                const balance = await tokenContract.balanceOf(walletAddress);
+                document.getElementById('userBalance').textContent = parseFloat(ethers.utils.formatEther(balance)).toFixed(2);
                 
-                {activeTab === 'dashboard' && (
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Your Positions</h3>
-                      
-                      <div className="space-y-4">
-                        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="font-semibold text-green-900">Deposits</span>
-                            <TrendingUp className="text-green-600" size={20} />
-                          </div>
-                          <div className="flex justify-between items-center py-2">
-                            <span className="text-gray-700">mUSDC</span>
-                            <div className="text-right">
-                              <p className="font-semibold text-gray-900">{parseFloat(userDeposit.amount).toFixed(2)}</p>
-                              <p className="text-sm text-green-600">{userDeposit.tickets} tickets</p>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-          
-          {/* Sidebar */}
-          <div className="space-y-6">
-            {/* Pool Info */}
-            <div className="bg-white rounded-2xl shadow-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                <DollarSign size={20} className="mr-2 text-indigo-600" />
-                Pool Statistics
-              </h3>
-              
-              <div className="space-y-4">
-                <div className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-2xl">💵</span>
-                      <span className="font-semibold text-gray-900">mUSDC</span>
-                    </div>
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      poolInfo.utilizationRate > 80 ? 'bg-red-100 text-red-700' :
-                      poolInfo.utilizationRate > 50 ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-green-100 text-green-700'
-                    }`}>
-                      {poolInfo.utilizationRate.toFixed(1)}% Used
-                    </span>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <p className="text-gray-500 mb-1">Total Deposits</p>
-                      <p className="font-semibold text-gray-900">
-                        {parseFloat(poolInfo.totalDeposits).toFixed(2)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500 mb-1">Total Borrows</p>
-                      <p className="font-semibold text-gray-900">
-                        {parseFloat(poolInfo.totalBorrows).toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+                // Get deposit info
+                const depositInfo = await lendingContract.getUserDepositInfo(walletAddress, MOCK_USDC_ADDRESS);
+                const depositAmount = parseFloat(ethers.utils.formatEther(depositInfo.amount)).toFixed(2);
+                const tickets = depositInfo.tickets.toString();
+                
+                document.getElementById('availableWithdraw').textContent = depositAmount;
+                document.getElementById('depositedAmount').textContent = depositAmount;
+                document.getElementById('depositedTickets').textContent = tickets;
+                document.getElementById('yourTickets').textContent = tickets;
+                
+                // Get raffle info
+                const raffleId = await lendingContract.currentRaffleId();
+                if (raffleId.toNumber() > 0) {
+                    document.getElementById('raffleId').textContent = raffleId.toString();
+                    
+                    const raffleInfo = await lendingContract.getRaffleInfo(raffleId);
+                    document.getElementById('rewardPool').textContent = parseFloat(ethers.utils.formatEther(raffleInfo.rewardPool)).toFixed(2);
+                    document.getElementById('participants').textContent = raffleInfo.participantCount.toString();
+                    
+                    // Update countdown
+                    updateCountdown(raffleInfo.endTime.toNumber());
+                }
+                
+                // Get pool info
+                const pool = await lendingContract.pools(MOCK_USDC_ADDRESS);
+                document.getElementById('totalDeposits').textContent = parseFloat(ethers.utils.formatEther(pool[1])).toFixed(2);
+                document.getElementById('totalBorrows').textContent = parseFloat(ethers.utils.formatEther(pool[2])).toFixed(2);
+                
+                const utilization = pool[3].toNumber() / 100;
+                document.getElementById('utilizationBadge').textContent = `${utilization.toFixed(1)}% Used`;
+                
+                // Check allowance
+                const allowance = await tokenContract.allowance(walletAddress, LENDING_PROTOCOL_ADDRESS);
+                if (allowance.eq(0)) {
+                    document.getElementById('approvalSection').classList.remove('hidden');
+                }
+                
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+        
+        // Update countdown
+        function updateCountdown(endTime) {
+            setInterval(() => {
+                const now = Math.floor(Date.now() / 1000);
+                const diff = endTime - now;
+                
+                if (diff <= 0) {
+                    document.getElementById('timeRemaining').textContent = 'Ended';
+                    return;
+                }
+                
+                const minutes = Math.floor(diff / 60);
+                const seconds = diff % 60;
+                
+                if (minutes > 60) {
+                    const hours = Math.floor(minutes / 60);
+                    const mins = minutes % 60;
+                    document.getElementById('timeRemaining').textContent = `${hours}h ${mins}m`;
+                } else {
+                    document.getElementById('timeRemaining').textContent = `${minutes}m ${seconds}s`;
+                }
+            }, 1000);
+        }
+        
+        // Approve tokens
+        async function approveTokens() {
+            try {
+                showStatus('Approving tokens...');
+                const tx = await tokenContract.approve(LENDING_PROTOCOL_ADDRESS, ethers.constants.MaxUint256);
+                showStatus('Waiting for confirmation...');
+                await tx.wait();
+                showStatus('✅ Tokens approved!', 'success');
+                document.getElementById('approvalSection').classList.add('hidden');
+                await loadUserData();
+            } catch (error) {
+                console.error(error);
+                showStatus('❌ Error approving tokens', 'error');
+            }
+        }
+        
+        // Deposit
+        async function deposit() {
+            const amount = document.getElementById('depositAmount').value;
+            if (!amount || parseFloat(amount) <= 0) {
+                showStatus('❌ Please enter a valid amount', 'error');
+                return;
+            }
             
-            {/* Contract Addresses */}
-            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Contract Info</h3>
-              
-              <div className="space-y-3 text-sm">
-                <div>
-                  <p className="text-gray-600 mb-1">Lending Protocol</p>
-                  <p className="font-mono text-xs text-gray-900 break-all">{LENDING_PROTOCOL_ADDRESS}</p>
-                </div>
-                <div>
-                  <p className="text-gray-600 mb-1">MockUSDC Token</p>
-                  <p className="font-mono text-xs text-gray-900 break-all">{MOCK_USDC_ADDRESS}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default RaffleLendingProtocol;
+            try {
+                showStatus('Depositing...');
+                const amountWei = ethers.utils.parseEther(amount);
+                const tx = await lendingContract.deposit(MOCK_USDC_ADDRESS, amountWei);
+                showStatus('Waiting for confirmation...');
+                await tx.wait();
+                showStatus('✅ Deposit successful! You earned raffle tickets!', 'success');
+                document.getElementById('depositAmount').value = '';
+                await loadUserData();
+            } catch (error) {
+                console.error(error);
+                showStatus('❌ Error depositing: ' + error.message, 'error');
+            }
+        }
+        
+        // Withdraw
+        async function withdraw() {
+            const amount = document.getElementById('withdrawAmount').value;
+            if (!amount || parseFloat(amount) <= 0) {
+                showStatus('❌ Please enter a valid amount', 'error');
+                return;
+            }
+            
+            try {
+                showStatus('Withdrawing...');
+                const amountWei = ethers.utils.parseEther(amount);
+                const tx = await lendingContract.withdraw(MOCK_USDC_ADDRESS, amountWei);
+                showStatus('Waiting for confirmation...');
+                await tx.wait();
+                showStatus('✅ Withdrawal successful!', 'success');
+                document.getElementById('withdrawAmount').value = '';
+                await loadUserData();
+            } catch (error) {
+                console.error(error);
+                showStatus('❌ Error withdrawing: ' + error.message, 'error');
+            }
+        }
+        
+        // Event listeners
+        document.getElementById('connectBtn').addEventListener('click', connectWallet);
+        document.getElementById('approveBtn').addEventListener('click', approveTokens);
+        document.getElementById('depositBtn').addEventListener('click', deposit);
+        document.getElementById('withdrawBtn').addEventListener('click', withdraw);
+        document.getElementById('refreshBtn').addEventListener('click', loadUserData);
+        
+        // Tab switching
+        document.getElementById('lendTab').addEventListener('click', () => {
+            document.getElementById('lendContent').classList.remove('hidden');
+            document.getElementById('dashboardContent').classList.add('hidden');
+            document.getElementById('lendTab').className = 'flex-1 px-6 py-4 font-semibold bg-indigo-50 text-indigo-600 border-b-2 border-indigo-600';
+            document.getElementById('dashboardTab').className = 'flex-1 px-6 py-4 font-semibold text-gray-600 hover:bg-gray-50';
+        });
+        
+        document.getElementById('dashboardTab').addEventListener('click', () => {
+            document.getElementById('lendContent').classList.add('hidden');
+            document.getElementById('dashboardContent').classList.remove('hidden');
+            document.getElementById('dashboardTab').className = 'flex-1 px-6 py-4 font-semibold bg-indigo-50 text-indigo-600 border-b-2 border-indigo-600';
+            document.getElementById('lendTab').className = 'flex-1 px-6 py-4 font-semibold text-gray-600 hover:bg-gray-50';
+        });
+        
+        // Update ticket preview
+        document.getElementById('depositAmount').addEventListener('input', (e) => {
+            const amount = e.target.value;
+            if (amount && parseFloat(amount) > 0) {
+                const tickets = Math.floor(parseFloat(amount));
+                document.getElementById('ticketsPreview').textContent = `≈ ${tickets} raffle tickets`;
+            } else {
+                document.getElementById('ticketsPreview').textContent = '';
+            }
+        });
+    </script>
+</body>
+</html>
